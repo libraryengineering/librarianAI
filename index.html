@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎙️ موظف الاستقبال الذكي</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="avatar">👩‍💼</div>
+    <h1>سارة</h1>
+    <div class="subtitle">موظفة الاستقبال الذكية</div>
+    <div class="files-count" id="filesCount"></div>
+  </div>
+
+  <div class="api-config" id="apiConfig">
+    <label>⚙️ إعداد لمرة واحدة:</label>
+    <input type="text" id="apiUrl"
+           placeholder="https://script.google.com/macros/s/.../exec">
+    <button onclick="saveApiUrl()">حفظ</button>
+    <div class="api-hint">💡 الصق رابط Apps Script من Deploy</div>
+  </div>
+
+  <div class="status info" id="status">🎯 اضغط على الميكروفون للتحدث</div>
+
+  <div class="mic-container">
+    <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎤</button>
+  </div>
+
+  <div class="conversation" id="conversation">
+    <div class="message bot-msg">👋 أهلاً وسهلاً! أنا سارة، كيف يمكنني مساعدتك؟</div>
+  </div>
+
+  <div class="controls">
+    <button class="control-btn" id="muteBtn" onclick="toggleMute()">🔊 الصوت</button>
+    <button class="control-btn" onclick="clearChat()">🗑️ مسح</button>
+    <button class="control-btn" onclick="stopSpeaking()">⏹️ إيقاف</button>
+    <button class="control-btn" onclick="showApiConfig()">⚙️</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
