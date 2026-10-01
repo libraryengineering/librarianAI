@@ -3,42 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>🎙️ موظف الاستقبال الذكي</title>
+<title>ARIA · AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="avatar">👩‍💼</div>
-    <h1>سارة</h1>
-    <div class="subtitle">موظفة الاستقبال الذكية</div>
-    <div class="files-count" id="filesCount"></div>
-  </div>
 
-  <div class="api-config" id="apiConfig">
-    <label>⚙️ إعداد لمرة واحدة:</label>
-    <input type="text" id="apiUrl"
-           placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()">حفظ</button>
-    <div class="api-hint">💡 الصق رابط Apps Script من Deploy</div>
-  </div>
+<!-- Grid Background -->
+<div class="grid-bg"></div>
+<div class="scanline"></div>
 
-  <div class="status info" id="status">🎯 اضغط على الميكروفون للتحدث</div>
+<div class="app">
 
-  <div class="mic-container">
-    <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎤</button>
-  </div>
+  <!-- HEADER -->
+  <header class="hud-header">
+    <div class="hud-left">
+      <div class="status-indicator">
+        <span class="pulse-ring"></span>
+        <span class="pulse-dot"></span>
+      </div>
+      <div class="id-badge">
+        <span class="id-label">SYSTEM</span>
+        <span class="id-value" id="systemId">ARIA-01</span>
+      </div>
+    </div>
 
-  <div class="conversation" id="conversation">
-    <div class="message bot-msg">👋 أهلاً وسهلاً! أنا سارة، كيف يمكنني مساعدتك؟</div>
-  </div>
+    <div class="hud-center">
+      <div class="logo-tech">
+        <div class="logo-hex">
+          <svg viewBox="0 0 100 100">
+            <polygon points="50,5 90,27.5 90,72.5 50,95 10,72.5 10,27.5"
+                     fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span class="logo-glyph">A</span>
+        </div>
+        <div class="logo-info">
+          <h1>ARIA</h1>
+          <p>Advanced Reception Intelligence Assistant</p>
+        </div>
+      </div>
+    </div>
 
-  <div class="controls">
-    <button class="control-btn" id="muteBtn" onclick="toggleMute()">🔊 الصوت</button>
-    <button class="control-btn" onclick="clearChat()">🗑️ مسح</button>
-    <button class="control-btn" onclick="stopSpeaking()">⏹️ إيقاف</button>
-    <button class="control-btn" onclick="showApiConfig()">⚙️</button>
-  </div>
+    <div class="hud-right">
+      <div class="status-badge" id="connStatus">
+        <span class="status-icon">◆</span>
+        <span class="status-text">ONLINE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN STAGE -->
+  <main class="stage">
+
+    <!-- Tech Frame Corners -->
+    <div class="tech-corners">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+    </div>
+
+    <!-- Core Visualization -->
+    <div class="core-container">
+      <!-- Rotating Rings -->
+      <div class="ring-outer"></div>
+      <div class="ring-mid"></div>
+      <div class="ring-inner"></div>
+
+      <!-- Data Particles -->
+      <div class="particles" id="particles"></div>
+
+      <!-- Core Orb -->
+      <div class="core" id="core">
+        <div class="core-inner"></div>
+        <div class="core-glitch"></div>
+      </div>
+
+      <!-- Waveform -->
+      <div class="waveform" id="waveform">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Status Readout -->
+    <div class="status-readout">
+      <div class="status-line">
+        <span class="status-key">STATUS:</span>
+        <span class="status-val" id="hint">STANDBY · اضغط للبدء</span>
+      </div>
+    </div>
+
+    <!-- Console Output -->
+    <div class="console" id="conversation">
+      <div class="console-line bot-line">
+        <span class="console-tag">[ARIA]</span>
+        <span class="console-text">مرحباً بك. أنا ARIA، جاهزة لمساعدتك.</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER CONTROLS -->
+  <footer class="hud-footer">
+
+    <button class="tech-btn" id="muteBtn" onclick="toggleMute()" title="الصوت">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+      <span class="btn-label">AUDIO</span>
+    </button>
+
+    <button class="core-btn" id="micBtn" onclick="toggleListening()">
+      <div class="core-btn-ring"></div>
+      <svg viewBox="0 0 24 24" fill="currentColor" id="micIcon">
+        <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+        <path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 1 0 2 0v-3.08A7 7 0 0 0 19 11z"/>
+      </svg>
+      <svg viewBox="0 0 24 24" fill="currentColor" id="stopIcon" style="display:none;">
+        <rect x="6" y="6" width="12" height="12" rx="2"/>
+      </svg>
+    </button>
+
+    <button class="tech-btn" onclick="clearChat()" title="مسح">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+      </svg>
+      <span class="btn-label">CLEAR</span>
+    </button>
+
+  </footer>
+
 </div>
 
 <script src="script.js"></script>
