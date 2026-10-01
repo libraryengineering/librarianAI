@@ -1,5 +1,6 @@
 /* ============================================
  * ARIA · Advanced Reception Intelligence Assistant
+ * مع JSONP لتجاوز CORS
  * ============================================ */
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyZu5JKper1teRwjp5mxprmxFMn-F37mdczFwkwQuKJSvYJOEO9TZErGlaoRTlAgxbt/exec';
@@ -83,43 +84,94 @@ function toggleListening() {
   }
 }
 
-async function handleUserInput(text) {
+/* ============ JSONP Call ============ */
+function jsonpCall(text, onSuccess, onError) {
+  const callbackName = 'ariaCallback_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+  // دالة الاستقبال
+  window[callbackName] = function(data) {
+    try {
+      delete window[callbackName];
+      const s = document.getElementById(callbackName);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    } catch(e) {}
+    onSuccess(data);
+  };
+
+  // بناء الرابط
+  const url = new URL(API_URL);
+  url.searchParams.set('action', 'getResponse');
+  url.searchParams.set('text', text);
+  url.searchParams.set('callback', callbackName);
+
+  // إضافة script tag
+  const script = document.createElement('script');
+  script.id = callbackName;
+  script.src = url.toString();
+
+  script.onerror = function() {
+    try {
+      delete window[callbackName];
+      const s = document.getElementById(callbackName);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    } catch(e) {}
+    onError('فشل الاتصال بالخادم');
+  };
+
+  document.body.appendChild(script);
+
+  // مهلة زمنية
+  setTimeout(() => {
+    if (window[callbackName]) {
+      try {
+        delete window[callbackName];
+        const s = document.getElementById(callbackName);
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+      } catch(e) {}
+      onError('انتهت المهلة');
+    }
+  }, 20000);
+}
+
+/* ============ معالجة السؤال ============ */
+function handleUserInput(text) {
   addMessage(text, 'user');
   setHint('PROCESSING · أفكر...', 'info');
   isProcessing = true;
   setCoreState('thinking');
   document.getElementById('micBtn').classList.add('thinking');
 
-  try {
-    const url = new URL(API_URL);
-    url.searchParams.set('action', 'getResponse');
-    url.searchParams.set('text', text);
+  jsonpCall(
+    text,
+    // نجاح
+    function(data) {
+      isProcessing = false;
+      setCoreState('idle');
+      document.getElementById('micBtn').classList.remove('thinking');
 
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      redirect: 'follow'
-    });
+      if (data.error) {
+        addMessage('SYSTEM ERROR · ' + data.error, 'bot');
+        setHint('ERROR', 'error');
+        return;
+      }
 
-    if (!response.ok) throw new Error('Connection failed');
-
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-
-    const answer = data.response || 'لم أستطع المعالجة';
-    addMessage(answer, 'bot');
-    speak(answer);
-    setHint('STANDBY · اضغطي للبدء', 'info');
-  } catch (e) {
-    console.error(e);
-    addMessage('SYSTEM ERROR · فشل الاتصال', 'bot');
-    setHint('CONNECTION FAILED', 'error');
-  } finally {
-    isProcessing = false;
-    setCoreState('idle');
-    document.getElementById('micBtn').classList.remove('thinking');
-  }
+      const answer = data.response || 'لم أستطع المعالجة';
+      addMessage(answer, 'bot');
+      speak(answer);
+      setHint('STANDBY · اضغطي للبدء', 'info');
+    },
+    // فشل
+    function(err) {
+      isProcessing = false;
+      setCoreState('idle');
+      document.getElementById('micBtn').classList.remove('thinking');
+      addMessage('SYSTEM ERROR · ' + err, 'bot');
+      setHint('CONNECTION FAILED', 'error');
+    }
+  );
 }
 
+/* ============ النطق ============ */
 function speak(text) {
   if (isMuted || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
@@ -170,14 +222,8 @@ function speak(text) {
 
     if (arVoice) u.voice = arVoice;
 
-    u.onend = () => {
-      setTimeout(speakNext, 150);
-    };
-
-    u.onerror = (e) => {
-      console.log('خطأ في النطق:', e);
-      setTimeout(speakNext, 100);
-    };
+    u.onend = () => setTimeout(speakNext, 150);
+    u.onerror = () => setTimeout(speakNext, 100);
 
     window.speechSynthesis.speak(u);
   }
@@ -185,6 +231,7 @@ function speak(text) {
   speakNext();
 }
 
+/* ============ الواجهة ============ */
 function setCoreState(state) {
   const core = document.getElementById('core');
   if (!core) return;
@@ -207,10 +254,7 @@ function addMessage(text, sender) {
   div.className = 'console-line ' + (sender === 'user' ? 'user-line' : 'bot-line');
 
   const tag = sender === 'user' ? '[YOU]' : '[ARIA]';
-  div.innerHTML = `
-    <span class="console-tag">${tag}</span>
-    <span class="console-text"></span>
-  `;
+  div.innerHTML = '<span class="console-tag">' + tag + '</span><span class="console-text"></span>';
   div.querySelector('.console-text').textContent = text;
   conv.appendChild(div);
   conv.scrollTop = conv.scrollHeight;
@@ -223,12 +267,7 @@ function addMessage(text, sender) {
 function clearChat() {
   const conv = document.getElementById('conversation');
   if (!conv) return;
-  conv.innerHTML = `
-    <div class="console-line bot-line">
-      <span class="console-tag">[ARIA]</span>
-      <span class="console-text">مرحباً بك. أنا ARIA، جاهزة لمساعدتك.</span>
-    </div>
-  `;
+  conv.innerHTML = '<div class="console-line bot-line"><span class="console-tag">[ARIA]</span><span class="console-text">مرحباً بك. أنا ARIA، جاهزة لمساعدتك.</span></div>';
   window.speechSynthesis.cancel();
   setCoreState('idle');
   const wf = document.getElementById('waveform');
