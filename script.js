@@ -9,7 +9,6 @@ let isListening = false;
 let isMuted = false;
 let isProcessing = false;
 
-/* ============ التهيئة ============ */
 window.addEventListener('load', () => {
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = () => {
@@ -18,7 +17,6 @@ window.addEventListener('load', () => {
   setHint('STANDBY · اضغطي للبدء', 'info');
 });
 
-/* ============ التعرف على الصوت ============ */
 function initRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -85,7 +83,6 @@ function toggleListening() {
   }
 }
 
-/* ============ معالجة السؤال ============ */
 async function handleUserInput(text) {
   addMessage(text, 'user');
   setHint('PROCESSING · أفكر...', 'info');
@@ -123,12 +120,10 @@ async function handleUserInput(text) {
   }
 }
 
-/* ============ النطق المُحسَّن ============ */
 function speak(text) {
   if (isMuted || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
 
-  // تنظيف النص من الرموز والإيموجي
   let cleanText = text
     .replace(/[*_#`~]/g, '')
     .replace(/\[.*?\]/g, '')
@@ -139,13 +134,11 @@ function speak(text) {
 
   if (!cleanText) return;
 
-  // تقسيم النص إلى جمل
   const sentences = cleanText
     .split(/[.!?؟]+/)
     .map(s => s.trim())
     .filter(s => s.length > 0);
 
-  // اختيار صوت عربي
   const voices = window.speechSynthesis.getVoices();
   const arVoice = voices.find(v => v.lang.startsWith('ar-SA')) ||
                   voices.find(v => v.lang.startsWith('ar-EG')) ||
@@ -192,7 +185,6 @@ function speak(text) {
   speakNext();
 }
 
-/* ============ إدارة الواجهة ============ */
 function setCoreState(state) {
   const core = document.getElementById('core');
   if (!core) return;
@@ -256,7 +248,6 @@ function toggleMute() {
   }
 }
 
-/* ============ اختصار مفتاح المسافة ============ */
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
     e.preventDefault();
