@@ -1,75 +1,28 @@
 /* ============================================
- * 🎙️ موظف الاستقبال الذكي - سارة
+ * ARIA · Advanced Reception Intelligence Assistant
  * ============================================ */
 
-let API_URL = localStorage.getItem('apiUrl') || '';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwZC7orr1igm89YLjVyO2Jp_KwNwlpvOK4_z20aWoYCNX3JnzNe1Tx8aXZ8Notv1xIN/exec';
+
 let recognition = null;
 let isListening = false;
 let isMuted = false;
 let isProcessing = false;
 
-/* ============ إدارة الرابط ============ */
-function showApiConfig() {
-  const config = document.getElementById('apiConfig');
-  config.classList.toggle('show');
-  document.getElementById('apiUrl').value = API_URL;
-}
-
-function saveApiUrl() {
-  const url = document.getElementById('apiUrl').value.trim();
-  if (!url || !url.includes('script.google.com')) {
-    alert('الرجاء إدخال رابط صحيح من script.google.com');
-    return;
-  }
-  API_URL = url;
-  localStorage.setItem('apiUrl', url);
-  document.getElementById('apiConfig').classList.remove('show');
-  updateStatus('✅ تم الحفظ! جاهز للاستخدام', 'success');
-  loadFilesInfo();
-}
-
-/* ============ الاتصال بـ Apps Script ============ */
-async function callAPI(action, params = {}) {
-  if (!API_URL) throw new Error('الرجاء إعداد الرابط أولاً');
-
-  const url = new URL(API_URL);
-  url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k, v]) => {
-    url.searchParams.set(k, v);
-  });
-
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    redirect: 'follow'
-  });
-
-  if (!response.ok) throw new Error('فشل الاتصال');
-  return await response.json();
-}
-
-/* ============ تحميل معلومات الملفات ============ */
-async function loadFilesInfo() {
-  if (!API_URL) return;
-  try {
-    const result = await callAPI('listFiles');
-    const files = result.files || [];
-    const el = document.getElementById('filesCount');
-    if (files.length > 0) {
-      el.textContent = `📚 أعرف ${files.length} ملف من قاعدة المعرفة`;
-    } else {
-      el.textContent = '📚 قاعدة المعرفة فارغة';
-    }
-  } catch (e) {
-    console.log('فشل تحميل الملفات:', e);
-  }
-}
+/* ============ التهيئة ============ */
+window.addEventListener('load', () => {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    window.speechSynthesis.getVoices();
+  };
+  setHint('STANDBY · اضغط للبدء', 'info');
+});
 
 /* ============ التعرف على الصوت ============ */
 function initRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    updateStatus('❌ المتصفح لا يدعم الصوت. استخدم Chrome', 'error');
-    document.getElementById('micBtn').disabled = true;
+    setHint('SYSTEM ERROR · المتصفح لا يدعم الصوت', 'error');
     return null;
   }
 
@@ -81,31 +34,41 @@ function initRecognition() {
 
   rec.onstart = () => {
     isListening = true;
+    setCoreState('listening');
+    setHint('LISTENING · أسمعك...', 'info');
     document.getElementById('micBtn').classList.add('listening');
-    updateStatus('🎤 أتحدث الآن...', 'info');
+    document.getElementById('micIcon').style.display = 'none';
+    document.getElementById('stopIcon').style.display = 'block';
   };
 
   rec.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    handleUserInput(transcript);
+    handleUserInput(event.results[0][0].transcript);
   };
 
   rec.onerror = (event) => {
     isListening = false;
+    setCoreState('idle');
     document.getElementById('micBtn').classList.remove('listening');
+    document.getElementById('micIcon').style.display = 'block';
+    document.getElementById('stopIcon').style.display = 'none';
+
     const errs = {
-      'no-speech': 'لم أسمع شيئاً، حاول مرة أخرى',
-      'not-allowed': '❌ اسمح بالوصول للميكروفون',
-      'network': 'خطأ في الشبكة'
+      'no-speech': 'NO INPUT · لم أسمع شيئاً',
+      'not-allowed': 'ACCESS DENIED · اسمحي بالميكروفون',
+      'network': 'NETWORK ERROR · خطأ في الشبكة'
     };
-    updateStatus(errs[event.error] || 'خطأ: ' + event.error, 'error');
+    setHint(errs[event.error] || 'ERROR · ' + event.error, 'error');
   };
 
   rec.onend = () => {
     isListening = false;
     document.getElementById('micBtn').classList.remove('listening');
-    if (document.getElementById('status').textContent.includes('أتحدث')) {
-      updateStatus('اضغط على الميكروفون للتحدث', 'info');
+    document.getElementById('micIcon').style.display = 'block';
+    document.getElementById('stopIcon').style.display = 'none';
+
+    if (!isProcessing) {
+      setCoreState('idle');
+      setHint('STANDBY · اضغط للبدء', 'info');
     }
   };
 
@@ -113,12 +76,6 @@ function initRecognition() {
 }
 
 function toggleListening() {
-  if (!API_URL) {
-    showApiConfig();
-    updateStatus('⚠️ الرجاء إدخال رابط Apps Script أولاً', 'error');
-    return;
-  }
-
   if (isProcessing) return;
   if (!recognition) recognition = initRecognition();
   if (!recognition) return;
@@ -126,28 +83,48 @@ function toggleListening() {
   if (isListening) {
     recognition.stop();
   } else {
-    try { recognition.start(); } catch(e) { console.log(e); }
+    try { recognition.start(); }
+    catch (e) {
+      setTimeout(() => { try { recognition.start(); } catch(e2){} }, 300);
+    }
   }
 }
 
 /* ============ معالجة السؤال ============ */
 async function handleUserInput(text) {
   addMessage(text, 'user');
-  updateStatus('🔍 أبحث في قاعدة المعرفة...', 'info');
+  setHint('PROCESSING · أبحث في البيانات...', 'info');
   isProcessing = true;
+  setCoreState('thinking');
   document.getElementById('micBtn').classList.add('thinking');
 
   try {
-    const result = await callAPI('getResponse', { text: text });
-    const response = result.response || 'عذراً، لم أستطع الرد';
-    addMessage(response, 'bot');
-    speak(response);
-    updateStatus('🎯 اضغط على الميكروفون للتحدث', 'info');
+    const url = new URL(API_URL);
+    url.searchParams.set('action', 'getResponse');
+    url.searchParams.set('text', text);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'follow'
+    });
+
+    if (!response.ok) throw new Error('Connection failed');
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    const answer = data.response || 'لم أستطع المعالجة';
+    addMessage(answer, 'bot');
+    speak(answer);
+    setHint('STANDBY · اضغط للبدء', 'info');
+
   } catch (e) {
-    addMessage('❌ عذراً، حدث خطأ في الاتصال', 'bot');
-    updateStatus('فشل الاتصال', 'error');
+    console.error(e);
+    addMessage('SYSTEM ERROR · فشل الاتصال', 'bot');
+    setHint('CONNECTION FAILED', 'error');
   } finally {
     isProcessing = false;
+    setCoreState('idle');
     document.getElementById('micBtn').classList.remove('thinking');
   }
 }
@@ -160,67 +137,92 @@ function speak(text) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ar-SA';
   u.rate = 1.0;
-  u.pitch = 1.1;
+  u.pitch = 1.05;
   u.volume = 1.0;
 
   const voices = window.speechSynthesis.getVoices();
   const arVoice = voices.find(v => v.lang.startsWith('ar'));
   if (arVoice) u.voice = arVoice;
 
+  u.onstart = () => {
+    setCoreState('speaking');
+    document.getElementById('waveform').classList.add('active');
+    setHint('SPEAKING · ARIA تتحدث...', 'info');
+  };
+
+  u.onend = () => {
+    setCoreState('idle');
+    document.getElementById('waveform').classList.remove('active');
+    setHint('STANDBY · اضغط للبدء', 'info');
+  };
+
+  u.onerror = () => {
+    setCoreState('idle');
+    document.getElementById('waveform').classList.remove('active');
+  };
+
   window.speechSynthesis.speak(u);
 }
 
-function stopSpeaking() {
-  window.speechSynthesis.cancel();
-  updateStatus('⏹️ تم الإيقاف', 'info');
+/* ============ الواجهة ============ */
+function setCoreState(state) {
+  const core = document.getElementById('core');
+  core.className = 'core';
+  if (state !== 'idle') core.classList.add(state);
 }
 
-/* ============ الواجهة ============ */
+function setHint(text, type) {
+  const hint = document.getElementById('hint');
+  hint.textContent = text;
+  hint.className = 'status-val';
+  if (type) hint.classList.add(type);
+}
+
 function addMessage(text, sender) {
   const conv = document.getElementById('conversation');
   const div = document.createElement('div');
-  div.className = 'message ' + (sender === 'user' ? 'user-msg' : 'bot-msg');
-  div.textContent = text;
+  div.className = 'console-line ' + (sender === 'user' ? 'user-line' : 'bot-line');
+
+  const tag = sender === 'user' ? '[YOU]' : '[ARIA]';
+  div.innerHTML = `
+    <span class="console-tag">${tag}</span>
+    <span class="console-text"></span>
+  `;
+  div.querySelector('.console-text').textContent = text;
   conv.appendChild(div);
   conv.scrollTop = conv.scrollHeight;
-}
 
-function updateStatus(text, type) {
-  const el = document.getElementById('status');
-  el.textContent = text;
-  el.className = 'status';
-  if (type) el.classList.add(type);
+  while (conv.children.length > 6) {
+    conv.removeChild(conv.firstChild);
+  }
 }
 
 function clearChat() {
-  document.getElementById('conversation').innerHTML =
-    '<div class="message bot-msg">👋 أهلاً! كيف يمكنني مساعدتك؟</div>';
+  document.getElementById('conversation').innerHTML = `
+    <div class="console-line bot-line">
+      <span class="console-tag">[ARIA]</span>
+      <span class="console-text">مرحباً بك. أنا ARIA، جاهزة لمساعدتك.</span>
+    </div>
+  `;
   window.speechSynthesis.cancel();
-  updateStatus('🎯 اضغط على الميكروفون للتحدث', 'info');
+  setCoreState('idle');
+  document.getElementById('waveform').classList.remove('active');
+  setHint('STANDBY · اضغط للبدء', 'info');
 }
 
 function toggleMute() {
   isMuted = !isMuted;
   const btn = document.getElementById('muteBtn');
-  btn.textContent = isMuted ? '🔇 صامت' : '🔊 الصوت';
   btn.classList.toggle('muted', isMuted);
-  if (isMuted) window.speechSynthesis.cancel();
+  if (isMuted) {
+    window.speechSynthesis.cancel();
+    setHint('AUDIO MUTED', 'info');
+  } else {
+    setHint('AUDIO ENABLED', 'success');
+  }
 }
 
-/* ============ التهيئة ============ */
-window.addEventListener('load', () => {
-  window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-
-  if (!API_URL) {
-    document.getElementById('apiConfig').classList.add('show');
-    updateStatus('⚙️ أدخل رابط Apps Script للبدء', 'info');
-  } else {
-    updateStatus('✅ جاهز! اضغط على الميكروفون', 'success');
-    loadFilesInfo();
-  }
-});
-
+/* ============ Space Bar ============ */
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
     e.preventDefault();
