@@ -2,7 +2,7 @@
  * ARIA · Advanced Reception Intelligence Assistant
  * ============================================ */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwZC7orr1igm89YLjVyO2Jp_KwNwlpvOK4_z20aWoYCNX3JnzNe1Tx8aXZ8Notv1xIN/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyZu5JKper1teRwjp5mxprmxFMn-F37mdczFwkwQuKJSvYJOEO9TZErGlaoRTlAgxbt/exec';
 
 let recognition = null;
 let isListening = false;
