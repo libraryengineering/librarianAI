@@ -1,9 +1,10 @@
 /* ==========================================================
- * ARIA - Advanced Reception Intelligence Assistant
- * مع نظام JSONP لتجاوز قيود CORS واتصال مستقر
+ * ARIA - Advanced Reception Intelligence Assistant (Direct Mode)
  * ========================================================== */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbxMtME3OYGuItzoALwkpGJmwD_DM3wfwub0twloNHgUELgongx4fZ5LtCx8JidYIYb9/exec';
+// ضع مفتاح الـ API الخاص بك هنا مباشرة (يبدأ بـ AIzaSy... أو المفتاح المباشر لديك)
+const GEMINI_API_KEY = 'AQ.Ab8RN6K7CI2aNCa0WTwq01y6pOrScpUNA3nJHFtxlpjCXhxg0Q';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
 
 let recognition = null;
 let isListening = false;
@@ -18,41 +19,12 @@ window.addEventListener('load', () => {
   testConnection();
 });
 
-// فحص الاتصال بالخادم عبر JSONP
 function testConnection() {
   const connStatus = document.getElementById('connStatus');
   if (connStatus) {
     connStatus.className = 'status-badge online';
     connStatus.innerHTML = '<span class="status-icon">◆</span><span class="status-text">ONLINE</span>';
   }
-}
-
-// إرسال الطلب إلى Google Apps Script باستخدام JSONP لتجنب مشاكل CORS
-function sendToBackend(action, text = '', callbackName = null) {
-  return new Promise((resolve, reject) => {
-    const cbName = callbackName || 'jsonp_cb_' + Math.round(100000 * Math.random());
-    
-    window[cbName] = function(response) {
-      delete window[cbName];
-      if (scriptNode && scriptNode.parentNode) {
-        scriptNode.parentNode.removeChild(scriptNode);
-      }
-      resolve(response);
-    };
-
-    const scriptNode = document.createElement('script');
-    scriptNode.src = `${API_URL}?action=${action}&text=${encodeURIComponent(text)}&callback=${cbName}`;
-    
-    scriptNode.onerror = function() {
-      delete window[cbName];
-      if (scriptNode && scriptNode.parentNode) {
-        scriptNode.parentNode.removeChild(scriptNode);
-      }
-      reject(new Error('فشل الاتصال بالخادم'));
-    };
-
-    document.head.appendChild(scriptNode);
-  });
 }
 
 function setHint(text, type = 'info') {
@@ -72,7 +44,7 @@ function toggleListening() {
 
 function startListening() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('متصفحك لا يدعم التعرف على الصوت. يمكنك الكتابة أو استخدام متصفح كروم.');
+    alert('متصفحك لا يدعم التعرف على الصوت. يمكنك الكتابة مباشرة.');
     return;
   }
 
@@ -96,7 +68,7 @@ function startListening() {
     handleUserMessage(transcript);
   };
 
-  recognition.onerror = function(event) {
+  recognition.onerror = function() {
     stopListening();
     setHint('حدث خطأ في الصوت، حاول مرة أخرى', 'error');
   };
@@ -134,22 +106,41 @@ async function handleUserMessage(message) {
   setHint('جاري المعالجة...', 'processing');
 
   try {
-    const data = await sendToBackend('getResponse', message);
-    if (data && data.response) {
-      appendMessage(data.response, 'bot');
-      speak(data.response);
-      setHint('STANDBY · اضغط للبدء', 'info');
-    } else {
-      const errText = data.error || 'عذراً، حدث خطأ في الرد.';
-      appendMessage('SYSTEM ERROR · ' + errText, 'bot-error');
-      setHint('خطأ في النظام', 'error');
-    }
+    const responseText = await callGeminiDirectly(message);
+    appendMessage(responseText, 'bot');
+    speak(responseText);
+    setHint('STANDBY · اضغط للبدء', 'info');
   } catch (err) {
-    appendMessage('SYSTEM ERROR · فشل الاتصال بالخادم', 'bot-error');
+    appendMessage('SYSTEM ERROR · فشل الاتصال بالذكاء الاصطناعي', 'bot-error');
     setHint('CONNECTION FAILED', 'error');
   } finally {
     isProcessing = false;
   }
+}
+
+async function callGeminiDirectly(userMessage) {
+  const systemPrompt = 'أنتِ "ARIA"، موظفة استقبال ذكية وودودة. أجب باختصار واحترافية (2-3 جمل). السؤال: ' + userMessage;
+  
+  const response = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Network response was not ok');
+  }
+
+  const data = await response.json();
+  if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+    return data.candidates[0].content.parts[0].text.trim();
+  }
+  return 'عذراً، لم أستطع فهم الرد.';
 }
 
 function appendMessage(text, sender) {
