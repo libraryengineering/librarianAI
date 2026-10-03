@@ -3,7 +3,7 @@
  * مع JSONP لتجاوز CORS
  * ============================================ */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbyZu5JKper1teRwjp5mxprmxFMn-F37mdczFwkwQuKJSvYJOEO9TZErGlaoRTlAgxbt/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxDkXgekCw1PcjpuO9jCQQPKeaRFOExFxQTMXckX276UkESBnrzGrRFwRik7T59tkQI/exec';
 
 let recognition = null;
 let isListening = false;
