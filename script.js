@@ -3,7 +3,7 @@
  * مع نظام JSONP لتجاوز قيود CORS واتصال مستقر
  * ========================================================== */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbxpl1P9Qjk9IxLEdRSXnFCeqST5d_0Rhp760-pFutdT7L6nqzkqh6hXPLM4aITpKaT9/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbybjI7438gG_PocwtrfaNP5B5WsFVr6Jx_eui6ffT0prsI6OLWbvF99QY5KhbSAhURY/exec';
 
 let recognition = null;
 let isListening = false;
